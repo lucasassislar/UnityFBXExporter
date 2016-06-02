@@ -97,7 +97,7 @@ namespace TestProject
             indices[35] = 7;
             AddIndices(indices, indices.Length, -1);
 
-            Export(@"C:\janus\cube.fbx");
+            Export(@"C:\cube.fbx");
         }
 
         static void Main(string[] args)
