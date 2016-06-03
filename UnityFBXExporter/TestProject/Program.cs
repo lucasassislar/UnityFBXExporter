@@ -14,6 +14,9 @@ namespace TestProject
         public extern static void Initialize([MarshalAs(UnmanagedType.LPStr)] string SceneName);
 
         [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public extern static void SetFBXCompatibility(int CompatibilityVersion);
+
+        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public extern static void AddMesh([MarshalAs(UnmanagedType.LPStr)] string MeshName);
 
         [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl)]

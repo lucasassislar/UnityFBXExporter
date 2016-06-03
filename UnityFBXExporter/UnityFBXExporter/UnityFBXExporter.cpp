@@ -21,6 +21,34 @@ extern "C"
 		}
 	}
 
+	__declspec(dllexport) void SetFBXCompatibility(int CompatibilityVersion)
+	{
+		const char* FBX = FBX_2016_00_COMPATIBLE;
+		switch (CompatibilityVersion)
+		{
+			case 0:
+				FBX = FBX_2010_00_COMPATIBLE;
+				break;
+			case 1:
+				FBX = FBX_2011_00_COMPATIBLE;
+				break;
+			case 2:
+				FBX = FBX_2012_00_COMPATIBLE;
+				break;
+			case 3:
+				FBX = FBX_2013_00_COMPATIBLE;
+				break;
+			case 4:
+				FBX = FBX_2014_00_COMPATIBLE;
+				break;
+			case 5:
+				FBX = FBX_2016_00_COMPATIBLE;
+				break;
+		}
+
+		ExportData::Exporter->SetFileExportVersion(FBX);
+	}
+
 	__declspec(dllexport) void AddMesh(char* MeshName)
 	{
 		FbxNode* Node = FbxNode::Create(ExportData::Scene, MeshName);
@@ -106,6 +134,12 @@ extern "C"
 	__declspec(dllexport) void AddMaterial(Vector3 DiffuseColor)
 	{
 		FbxLayer* Layer = ExportData::Mesh->GetLayer(0);
+
+		if (Layer == nullptr)
+		{
+			ExportData::Mesh->CreateLayer();
+			Layer = ExportData::Mesh->GetLayer(0);
+		}
 
 		FbxLayerElementMaterial* MatLayer = FbxLayerElementMaterial::Create(ExportData::Mesh, "");
 		MatLayer->SetMappingMode(FbxLayerElement::eByPolygon);

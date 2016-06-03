@@ -1,3 +1,4 @@
+#pragma once
 #include "ExportData.h"
 
 bool ExportData::bInitialized = false;
