@@ -3,6 +3,6 @@
 struct Vector2
 {
 public:
-	double X;
-	double Y;
+	float X;
+	float Y;
 };

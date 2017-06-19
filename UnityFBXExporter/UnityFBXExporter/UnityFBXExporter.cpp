@@ -14,48 +14,86 @@ extern "C"
 		}
 		else
 		{
+			//
 			ExportData::bInitialized = true;
 			ExportData::Manager = FbxManager::Create();
-			ExportData::Exporter = FbxExporter::Create(ExportData::Manager, "Exporter");
+			ExportData::IOSettings = FbxIOSettings::Create(ExportData::Manager, IOSROOT);
+			ExportData::Manager->SetIOSettings(ExportData::IOSettings);
+
 			ExportData::Scene = FbxScene::Create(ExportData::Manager, SceneName);
 		}
 	}
 
 	__declspec(dllexport) void SetFBXCompatibility(int CompatibilityVersion)
 	{
-		const char* FBX = FBX_2016_00_COMPATIBLE;
-		switch (CompatibilityVersion)
-		{
-			case 0:
-				FBX = FBX_2010_00_COMPATIBLE;
-				break;
-			case 1:
-				FBX = FBX_2011_00_COMPATIBLE;
-				break;
-			case 2:
-				FBX = FBX_2012_00_COMPATIBLE;
-				break;
-			case 3:
-				FBX = FBX_2013_00_COMPATIBLE;
-				break;
-			case 4:
-				FBX = FBX_2014_00_COMPATIBLE;
-				break;
-			case 5:
-				FBX = FBX_2016_00_COMPATIBLE;
-				break;
-		}
-
-		ExportData::Exporter->SetFileExportVersion(FBX);
+		ExportData::FbxCompatibility = CompatibilityVersion;
 	}
 
-	__declspec(dllexport) void AddMesh(char* MeshName)
+	__declspec(dllexport) void BeginMesh(char* MeshName)
 	{
-		FbxNode* Node = FbxNode::Create(ExportData::Scene, MeshName);
-		ExportData::Scene->GetRootNode()->AddChild(Node);
 		ExportData::Mesh = FbxMesh::Create(ExportData::Scene, MeshName);
+		ExportData::MeshName = strdup(MeshName);
+	}
 
-		Node->SetNodeAttribute(ExportData::Mesh);
+	__declspec(dllexport) void EndMesh()
+	{
+		FbxNode* MeshNode = FbxNode::Create(ExportData::Scene, ExportData::MeshName);
+		MeshNode->SetNodeAttribute(ExportData::Mesh);
+		MeshNode->SetShadingMode(FbxNode::eTextureShading);
+		if (ExportData::Material != nullptr)
+		{
+			MeshNode->AddMaterial(ExportData::Material);
+		}
+		ExportData::Scene->GetRootNode()->AddChild(MeshNode);
+
+		// free data
+		free(ExportData::MeshName);
+		ExportData::Material = nullptr;
+		ExportData::Mesh = nullptr;
+	}
+
+	__declspec(dllexport) void EnableDefaultMaterial(char* materialName)
+	{
+		FbxSurfacePhong* Material = FbxSurfacePhong::Create(ExportData::Scene, materialName);
+		ExportData::Material = Material;
+
+		FbxString lShadingName = "Phong";
+		FbxDouble3 lEmissive(0.0, 0.0, 0.0);
+		FbxDouble3 lAmbient(1.0, 1.0, 1.0);
+		FbxDouble3 lDiffuseColor(1.0, 1.0, 1.0);
+		FbxDouble3 lSpecular(0, 0, 0);
+		double specular = 0;
+
+		Material->Emissive.Set(lEmissive);
+		Material->Ambient.Set(lAmbient);
+		Material->AmbientFactor.Set(1);
+		Material->DiffuseFactor.Set(1);
+		Material->TransparencyFactor.Set(1);
+		Material->ShadingModel.Set(lShadingName);
+		Material->Shininess.Set(0.5);
+		Material->Specular.Set(lSpecular);
+		Material->SpecularFactor.Set(1.0);
+	}
+
+	__declspec(dllexport) void SetMaterial(char* materialName, Vector3 Emissive, Vector3 Ambient, Vector3 Diffuse, Vector3 Specular, Vector3 Reflection, double Shininess)
+	{
+		FbxSurfacePhong* Material = ExportData::Material;
+		if (Material == nullptr)
+		{
+			EnableDefaultMaterial(materialName);
+		}
+
+		Material->AmbientFactor.Set(1);
+		Material->DiffuseFactor.Set(1);
+		Material->SpecularFactor.Set(1);
+		Material->TransparencyFactor.Set(1);
+
+		Material->Emissive.Set(FbxDouble3(Emissive.X, Emissive.Y, Emissive.Z));
+		Material->Ambient.Set(FbxDouble3(Ambient.X, Ambient.Y, Ambient.Z));
+		Material->Diffuse.Set(FbxDouble3(Diffuse.X, Diffuse.Y, Diffuse.Z));
+		Material->Specular.Set(FbxDouble3(Specular.X, Specular.Y, Specular.Z));
+		Material->Reflection.Set(FbxDouble3(Reflection.X, Reflection.Y, Reflection.Z));
+		Material->Shininess.Set(Shininess);
 	}
 
 	__declspec(dllexport) void AddIndices(int Triangles[], int Count, int Material)
@@ -63,9 +101,10 @@ extern "C"
 		for (int i = 0; i < Count - 2; i += 3)
 		{
 			ExportData::Mesh->BeginPolygon(Material);
-			ExportData::Mesh->AddPolygon(Triangles[i]);
-			ExportData::Mesh->AddPolygon(Triangles[i + 1]);
-			ExportData::Mesh->AddPolygon(Triangles[i + 2]);
+			for (int j = 0; j < 3; j++)
+			{
+				ExportData::Mesh->AddPolygon(Triangles[i + j]);
+			}
 			ExportData::Mesh->EndPolygon();
 		}
 	}
@@ -92,8 +131,18 @@ extern "C"
 			Layer = ExportData::Mesh->GetLayer(0);
 		}
 
+		/*FbxGeometryElementNormal* lGeometryElementNormal = ExportData::Mesh->CreateElementNormal();
+		lGeometryElementNormal->SetMappingMode(FbxGeometryElement::eByControlPoint);
+		lGeometryElementNormal->SetReferenceMode(FbxGeometryElement::eDirect);
+
+		for (int i = 0; i < Count; i++)
+		{
+			Vector3 Vec = Normals[i];
+			lGeometryElementNormal->GetDirectArray().Add(FbxVector4(Vec.X, Vec.Y, Vec.Z));
+		}*/
+
 		FbxLayerElementNormal* LayerElementNormal = FbxLayerElementNormal::Create(ExportData::Mesh, "");
-		LayerElementNormal->SetMappingMode(FbxLayerElement::eByPolygonVertex);
+		LayerElementNormal->SetMappingMode(FbxLayerElement::eByControlPoint);
 		LayerElementNormal->SetReferenceMode(FbxLayerElement::eDirect);
 
 		for (int i = 0; i < Count; i++)
@@ -119,8 +168,20 @@ extern "C"
 			Layer = ExportData::Mesh->GetLayer(UVLayer);
 		}
 
+		// Create UV for Diffuse channel
+		/*FbxGeometryElementUV* lUVDiffuseElement = ExportData::Mesh->CreateElementUV(ChannelName);
+		FBX_ASSERT(lUVDiffuseElement != NULL);
+		lUVDiffuseElement->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
+		lUVDiffuseElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
+
+		for (int i = 0; i < Count; i++)
+		{
+			Vector2 Vec = TexCoords[i];
+			lUVDiffuseElement->GetDirectArray().Add(FbxVector2(Vec.X, Vec.Y));
+		}*/
+
 		FbxLayerElementUV* UVsLayer = FbxLayerElementUV::Create(ExportData::Mesh, ChannelName);
-		UVsLayer->SetMappingMode(FbxLayerElement::eByPolygonVertex);
+		UVsLayer->SetMappingMode(FbxLayerElement::eByControlPoint);
 		UVsLayer->SetReferenceMode(FbxLayerElement::eDirect);//eIndexToDirect
 
 		for (int i = 0; i < Count; i++)
@@ -153,8 +214,36 @@ extern "C"
 
 	__declspec(dllexport) void Export(char* FileName)
 	{
-		ExportData::Exporter->Initialize(FileName);
-		ExportData::Exporter->Export(ExportData::Scene);
+		const char* FBX = FBX_2016_00_COMPATIBLE;
+		switch (ExportData::FbxCompatibility)
+		{
+			case 0:
+				FBX = FBX_2010_00_COMPATIBLE;
+				break;
+			case 1:
+				FBX = FBX_2011_00_COMPATIBLE;
+				break;
+			case 2:
+				FBX = FBX_2012_00_COMPATIBLE;
+				break;
+			case 3:
+				FBX = FBX_2013_00_COMPATIBLE;
+				break;
+			case 4:
+				FBX = FBX_2014_00_COMPATIBLE;
+				break;
+			case 5:
+				FBX = FBX_2016_00_COMPATIBLE;
+				break;
+		}
+
+		FbxExporter* exporter = FbxExporter::Create(ExportData::Manager, "Exporter");
+		exporter->SetFileExportVersion(FBX);
+
+		exporter->Initialize(FileName);
+		exporter->Export(ExportData::Scene);
+
+		exporter->Destroy(true);
 	}
 }
 

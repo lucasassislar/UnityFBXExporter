@@ -10,37 +10,46 @@ namespace TestProject
 {
     class Program
     {
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public extern static void Initialize([MarshalAs(UnmanagedType.LPStr)] string SceneName);
 
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public extern static void SetFBXCompatibility(int CompatibilityVersion);
 
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        public extern static void AddMesh([MarshalAs(UnmanagedType.LPStr)] string MeshName);
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public extern static void BeginMesh([MarshalAs(UnmanagedType.LPStr)] string MeshName);
 
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public extern static void EndMesh();
+
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl)]
         public extern static void AddVertices(FbxVector3[] Vertices, int Count);
 
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl)]
         public extern static void AddIndices(int[] Triangles, int Count, int Material);
 
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl)]
         public extern static void AddNormals(FbxVector3[] Normals, int Count);
 
         [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl)]
         public extern static void AddTexCoords(FbxVector2[] TexCoords, int Count, int UVLayer, string ChannelName);
 
-        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl)]
-        public extern static void AddMaterial(FbxVector3 DiffuseColor);
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public extern static void EnableDefaultMaterial([MarshalAs(UnmanagedType.LPStr)] string materialName);
 
-        [DllImport("UnityFBXExporter.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void SetMaterial([MarshalAs(UnmanagedType.LPStr)] string materialName, 
+            FbxVector3 emissive, FbxVector3 ambient, FbxVector3 diffuse, FbxVector3 specular, 
+            FbxVector3 reflection, double shininess);
+
+        [DllImport("UnityFBXExporter", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public extern static void Export([MarshalAs(UnmanagedType.LPStr)] string SceneName);
 
         static void ExportCube()
         {
             Initialize("CubeScene");
-            AddMesh("CubeMesh");
+            SetFBXCompatibility(3);
+            BeginMesh("CubeMesh");
 
             FbxVector3[] positions = new FbxVector3[8];
             FbxVector3[] normals = new FbxVector3[8];
@@ -53,7 +62,15 @@ namespace TestProject
             positions[5] = new FbxVector3(-1, 2, 1);
             positions[6] = new FbxVector3(1, 2, -1);
             positions[7] = new FbxVector3(-1, 2, -1);
-            AddVertices(positions, positions.Length);
+
+            normals[0] = new FbxVector3(1, 0, 0);
+            normals[1] = new FbxVector3(-1, 0, 0);
+            normals[2] = new FbxVector3(0, 1, 0);
+            normals[3] = new FbxVector3(0, -1, 0);
+            normals[4] = new FbxVector3(0, 0, 1);
+            normals[5] = new FbxVector3(0, 0, -1);
+            normals[6] = new FbxVector3(1, 0, 0);
+            normals[7] = new FbxVector3(-1, 0, 0);
 
             int[] indices = new int[36];
             // bottom
@@ -98,9 +115,14 @@ namespace TestProject
             indices[33] = 2;
             indices[34] = 3;
             indices[35] = 7;
-            AddIndices(indices, indices.Length, -1);
 
-            Export(@"C:\cube.fbx");
+            EnableDefaultMaterial("Material");
+            AddVertices(positions, positions.Length);
+            AddNormals(normals, normals.Length);
+            AddIndices(indices, indices.Length, 0);
+            EndMesh();
+
+            Export(@"C:\Test\cube.fbx");
         }
 
         static void Main(string[] args)
